@@ -48,5 +48,5 @@ class solarSystem:
             color = self.planets[x].backgroundColor
             self.drawPlanet(angles[x], rad, color)
 
-runApp(width = 1900, height = 1000)
-    
+
+runApp(width = 1900, height = 1000)    
