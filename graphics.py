@@ -2,36 +2,7 @@ from cmu_graphics import *
 import random
 from planet import Planet
 import math
-
-#solar system class
-class solarSystem:
-    def __init__(self, planets, centerX, centerY):
-        self.planets = planets
-        self.centerX = centerX
-        self.centerY = centerY
-        self.biggestCircleRadius = 400
-        self.stepSize = self.biggestCircleRadius/len(self.planets)
-    
-    #draws planet on a particular orbit line (basically draws things in polar coordinates with respect
-    #to self.centerX and self.centerY)
-    def drawPlanet(self, angle, radius, color):
-        x = math.sin(angle) * radius + self.centerX
-        y = self.centerY - math.cos(angle) * radius
-        drawCircle(x, y, 10, fill = color)
-
-    def draw(self, angles):
-        #first, need to draw concentric circles representing an orbit
-        #then, need to draw an animated planet for each orbit
-        for x in range(len(self.planets)):
-            if x == 0:
-                drawCircle(self.centerX, self.centerY, self.stepSize, fill = None, border = "white")
-                color = self.planets[x].backgroundColor
-                self.drawPlanet(angles[x], self.stepSize, color)
-                continue
-            rad = (x + 1)*self.stepSize
-            drawCircle(self.centerX, self.centerY, rad, fill = None, border = "white")
-            color = self.planets[x].backgroundColor
-            self.drawPlanet(angles[x], rad, color)
+from solarSystem import solarSystem
 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
@@ -82,6 +53,9 @@ def planet_onKeyHold(app, keys):
     if "down" in keys:
         app.scrollY -= 5
 
+#conceptual understanding of side scrolling implementation learned from demo 
+#provided by CMU professor Mike Taylor
+#https://piazza.com/class/lkq6ivek5cg1bc/post/2231
 def planet_redrawAll(app):
     xValue = app.width/2
     yValue = app.height/2
@@ -126,6 +100,9 @@ def solarSystem_onMousePress(app, mouseX, mouseY):
             app.planet = app.planets[app.selectedPlanet - 1]
             app.dots = app.planet.generateDots()
 
+#conceptual understanding of multiple screens implementation learned from demo 
+#provided by CMU professor Mike Taylor
+#https://piazza.com/class/lkq6ivek5cg1bc/post/2231
 def solarSystem_onKeyPress(app, key):
     if key == "enter" and isinstance(app.selectedPlanet, int):
         setActiveScreen("planet")
