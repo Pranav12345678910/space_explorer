@@ -62,12 +62,12 @@ def planet_redrawAll(app):
     #draw player at center
     drawRect(0, 0, app.width, app.height, fill = app.planet.backgroundColor)
     drawCircle(xValue, yValue, 10, fill = "black")
-    #a given element in app.dots is [x, y, color, size]
+    #a given element in app.dots is an instance of the Dot class with attributes x, y, size and color
     for x in app.dots:
-        xCoord = x[0] + app.scrollX
-        yCoord = x[1] + app.scrollY
+        xCoord = x.x + app.scrollX
+        yCoord = x.y + app.scrollY
         #draw dots
-        drawCircle(xCoord, yCoord, x[3], fill = x[2])
+        drawCircle(xCoord, yCoord, x.size, fill = x.color)
 
 #all functions for solarSystem scene
 def solarSystem_redrawAll(app):
@@ -84,6 +84,7 @@ def solarSystem_onStep(app):
 
 def solarSystem_onMousePress(app, mouseX, mouseY):
     #finding smallest ring that their click was within, and selecting the corresponding planet
+    #deselect if they click when something is selected
     if isinstance(app.selectedPlanet, int):
         app.selectedPlanet = None
         app.planet = None

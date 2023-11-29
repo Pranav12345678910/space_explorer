@@ -1,3 +1,4 @@
+from dot import *
 import random
 
 class Planet:
@@ -14,6 +15,9 @@ class Planet:
 
     def generateDots(self):
         #returns a list of dots, where each dot is a 4-tuple: (x, y, color, size)
-        return [[random.randrange(self.appWidth), random.randrange(self.appHeight), 
+        return [Dot(random.randrange(self.appWidth), random.randrange(self.appHeight), 
                 self.dotColors[random.randint(1, len(self.dotColors) - 1)], 
-                random.randint(10, self.maxSize)] for _ in range(self.numDots)]
+                random.randint(10, self.maxSize)) for _ in range(self.numDots)]
+        #return [[random.randrange(self.appWidth), random.randrange(self.appHeight), 
+                #self.dotColors[random.randint(1, len(self.dotColors) - 1)], 
+                #random.randint(10, self.maxSize)] for _ in range(self.numDots)]
