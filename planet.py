@@ -1,23 +1,21 @@
+from random import *
 from dot import *
-import random
 
 class Planet:
-    #Planets, graphically, are just specifications to randomly generate dots (for now)
-    def __init__(self, dotColors, backgroundColor, maxSize, numDots, appWidth, appHeight):
-        self.dotColors = dotColors
+    #Planets are specifications to randomly generate dots
+    def __init__(self, backgroundColor, numDots, appWidth, appHeight, possibleMaterials):
         self.backgroundColor = backgroundColor
-        self.maxSize = maxSize
-        self.minSize = 10
         self.numDots = numDots
         self.appWidth = appWidth
         self.appHeight = appHeight
+        self.possibleMaterials = possibleMaterials
 
 
     def generateDots(self):
-        #returns a list of dots, where each dot is a 4-tuple: (x, y, color, size)
-        return [Dot(random.randrange(self.appWidth), random.randrange(self.appHeight), 
-                self.dotColors[random.randint(1, len(self.dotColors) - 1)], 
-                random.randint(10, self.maxSize)) for _ in range(self.numDots)]
-        #return [[random.randrange(self.appWidth), random.randrange(self.appHeight), 
-                #self.dotColors[random.randint(1, len(self.dotColors) - 1)], 
-                #random.randint(10, self.maxSize)] for _ in range(self.numDots)]
+        #returns a list of dots, where each dot takes in x, y, color, size
+        #first generates list of materials 
+        result = []
+        for x in range(self.numDots):
+            materialIndex = randint(0, len(self.possibleMaterials) - 1)
+            result.append(self.possibleMaterials[materialIndex].generateDot(self.appWidth, self.appHeight))
+        return result

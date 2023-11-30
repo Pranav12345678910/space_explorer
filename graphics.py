@@ -3,6 +3,7 @@ import random
 from planet import Planet
 import math
 from solarSystem import solarSystem
+from materials import Material
 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
@@ -14,21 +15,39 @@ darkBrown = rgb(102, 51, 0)
 lightBrown = rgb(153, 102, 51)
 middleGreen = rgb(0, 153, 51)
 sand = rgb(194, 178, 128)
+gray = rgb(191, 202, 219)
+
+
+#materials 
+wood = Material((lightBrown, darkBrown), 10, 30)
+metal = Material((gray, sand), 10, 30)
+
+
 
 #onAppStart for all scenes
 def onAppStart(app):
     app.scrollX = 0
     app.scrollY = 0
-    app.planets = [Planet((darkGreen, "blue"), "green", 30, 5, 
-                                         app.width, app.height), Planet(("green", "blue"), "blue", 30, 5, 
-                                         app.width, app.height), Planet(("green", "blue"), "purple", 30, 5, 
-                                         app.width, app.height)]
+    app.planets = [Planet("green", 30, app.width, app.height, (wood, metal)), 
+                   Planet("blue", 30, app.width, app.height, (wood, metal)), 
+                   Planet("purple", 30, app.width, app.height, (wood, metal))]
     app.solarSystem = solarSystem(app.planets, app.width/2, app.height/2) 
     app.planet = None
     app.dots = None
     app.rotateSpeeds = [random.uniform(0, 0.5) for x in range(len(app.solarSystem.planets))]
     app.angles = [1 for x in range(len(app.solarSystem.planets))]
     app.selectedPlanet = None
+    app.inventoryIconCoords = (50, 850, 100, 100)
+    app.inventoryPressed = False
+
+def drawInventoryIcon(app):
+    drawRect(*app.inventoryIconCoords, opacity = 30) 
+    drawLabel("Inventory", 100, 900)   
+
+def drawInventory(app):
+    drawRect(app.width/2, app.height/2, 500, 500, align = "center", fill = "white")
+    drawLabel("Inventory", app.width/2, app.height/2 - 175, size = 100)
+    #find grid making code from tetris
 
 #all functions for planet scene
 def planet_onKeyPress(app, key):
@@ -53,6 +72,15 @@ def planet_onKeyHold(app, keys):
     if "down" in keys:
         app.scrollY -= 5
 
+def planet_onMousePress(app, mouseX, mouseY):
+    xCoord = app.inventoryIconCoords[0]
+    yCoord = app.inventoryIconCoords[1]
+    width = app.inventoryIconCoords[2]
+    if app.inventoryPressed:
+        app.inventoryPressed = False
+    elif (xCoord < mouseX < xCoord + width) and (yCoord < mouseY < yCoord + width):
+        app.inventoryPressed = True
+
 #conceptual understanding of side scrolling implementation learned from demo 
 #provided by CMU professor Mike Taylor
 #https://piazza.com/class/lkq6ivek5cg1bc/post/2231
@@ -68,6 +96,10 @@ def planet_redrawAll(app):
         yCoord = x.y + app.scrollY
         #draw dots
         drawCircle(xCoord, yCoord, x.size, fill = x.color)
+    if app.inventoryPressed:
+        drawInventory(app)
+    #draw inventory icon
+    drawInventoryIcon(app)
 
 #all functions for solarSystem scene
 def solarSystem_redrawAll(app):
