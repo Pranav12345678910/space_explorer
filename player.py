@@ -7,5 +7,3 @@ class Player:
         self.inventory = [([0] * self.inventoryCols) for row in range(self.inventoryRows)]
         self.currTool = None
         self.currArmor = None
-
- 
