@@ -9,9 +9,8 @@ from tool import Tool
 from armour import Armour
 
 #To - do
-#Collecting materials and storing in inventory and emptying cells in inventory
 #pending functions: drawCraftWindow, what to do with third button in inventory
-
+#should I remove side scrolling citations
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
@@ -26,14 +25,15 @@ gray = rgb(191, 202, 219)
 
 
 #materials 
-wood = Material((lightBrown, darkBrown), 10, 30)
-metal = Material((gray, sand), 10, 30)
+wood = Material((lightBrown, darkBrown), 10, 30, "wood", 10)
+metal = Material((gray, sand), 10, 30, "metal", 10)
+materialNameDict = {"wood": wood, "metal": metal}
 
 #tools
-axe = Tool(8, 10, 1, 1, "axe")
-pickaxe = Tool(3, 1, 10, 1, "pickaxe")
-sword = Tool(5, 1, 1, 3, "sword")
-hand = Tool(1, 1, 1, 1, "hand")
+axe = Tool(8, 10, 1, 1, "axe", 30)
+pickaxe = Tool(3, 1, 10, 1, "pickaxe", 30)
+sword = Tool(5, 1, 1, 3, "sword", 20)
+hand = Tool(1, 1, 1, 1, "hand", 100)
 
 #armours
 skin = Armour(1, 1, "skin")
@@ -44,8 +44,6 @@ def onAppStart(app):
     app.player = Player()
     app.player.currTool = hand
     app.player.currArmor = skin
-    app.scrollX = 0
-    app.scrollY = 0
     app.planets = [Planet("green", 30, app.width, app.height, (wood, metal)), 
                    Planet("blue", 30, app.width, app.height, (wood, metal)), 
                    Planet("purple", 30, app.width, app.height, (wood, metal))]
@@ -66,7 +64,6 @@ def onAppStart(app):
     app.inventoryRows = app.player.inventoryRows
     app.inventoryGridWidth = 400
     app.inventoryGridHeight = 200
-    app.inventory = app.player.inventory
     app.cellBorderWidth = 2
     app.equipPressed = False
     app.selectedRowCol = None
@@ -97,15 +94,16 @@ def drawCell(app, row, col, content):
     else:
         drawRect(cellLeft, cellTop, cellWidth, cellHeight, border = "black", 
                 fill = "white", borderWidth = app.cellBorderWidth)
-    if content == None:
+    if content == 0:
         drawLabel("empty", cellLeft + cellWidth/2, cellTop + cellWidth/2)
     else:
-        drawLabel(content, cellLeft + cellWidth/2, cellTop + cellWidth/2)
+        drawLabel(content[0], cellLeft + cellWidth/2, cellTop + cellWidth/4)
+        drawLabel(content[1], cellLeft + cellWidth/2, cellTop + 3 * cellWidth/4)
 
 def drawInventoryGrid(app):
     for y in range(app.inventoryRows):
         for x in range(app.inventoryCols):
-            drawCell(app, y, x, app.inventory[y][x])
+            drawCell(app, y, x, app.player.inventory[y][x])
     drawRect(app.inventoryGridTopLeft[0], app.inventoryGridTopLeft[1], 
              app.inventoryGridWidth, app.inventoryGridHeight, 
              fill = None, border = "black", 
@@ -177,54 +175,52 @@ def drawCraftWindow(app):
     #the necessary materials is displayed
     pass
 
+def updateDots(app, sign, direction):
+    if direction == "x":
+        for x in app.dots:
+            x.x = x.x + 5 * sign * app.player.currArmor.speedFactor
+    else:
+        for x in app.dots:
+            x.y = x.y + 5 * sign * app.player.currArmor.speedFactor
+
 #all functions for planet scene
 def planet_onKeyPress(app, key):
-    if key == "left" or key == "a":
-        app.scrollX += 5
-    elif key == "right" or key == "d":
-        app.scrollX -= 5
-    elif key == "up" or key == "w":
-        app.scrollY += 5
-    elif key == "down" or key == "s":
-        app.scrollY -= 5
+    if key == "left":
+        updateDots(app, +1, "x")
+    elif key == "right":
+        updateDots(app, -1, "x")
+    elif key == "up":
+        updateDots(app, -1, "y")
+    elif key == "down":
+        updateDots(app, +1, "y")
     elif key == "space":
         setActiveScreen("solarSystem")
 
 def planet_onKeyHold(app, keys):
-    if "left" in keys:
-        app.scrollX += 5
-    if "right" in keys:
-        app.scrollX -= 5
-    if "up" in keys:
-        app.scrollY += 5
-    if "down" in keys:
-        app.scrollY -= 5    
+    if "a" in keys:
+        updateDots(app, +1, "x")
+    if "d" in keys:
+        updateDots(app, -1, "x")
+    if "w" in keys:
+        updateDots(app, +1, "y")
+    if "s" in keys:
+        updateDots(app, -1, "y")
 
-def planet_onMousePress(app, mouseX, mouseY):
+def checkInventoryIconPress(app, mouseX, mouseY):
     xCoordIcon = app.inventoryIconCoords[0]
     yCoordIcon = app.inventoryIconCoords[1]
     widthIcon = app.inventoryIconCoords[2]
     heightIcon = app.inventoryIconCoords[3]
+    if (xCoordIcon < mouseX < xCoordIcon + widthIcon) and (yCoordIcon < 
+                                                             mouseY < yCoordIcon 
+                                                             + heightIcon):
+        return True
+    
+def checkCloseButtonPress(app, mouseX, mouseY):
     xCoordCloseButton = app.inventoryXButton[0]
     yCoordCloseButton = app.inventoryXButton[1]
     widthCloseButton = app.inventoryXButton[2]
     heightCloseButton = app.inventoryXButton[3]
-    xCoordEquipButton = app.inventoryEquipButton[0]
-    yCoordEquipButton = app.inventoryEquipButton[1] 
-    widthEquipButton = app.inventoryEquipButton[2]
-    heightEquipButton = app.inventoryEquipButton[3]
-    xCoordThirdButton = app.inventoryThirdButton[0]
-    yCoordThirdButton = app.inventoryThirdButton[1]
-    widthThirdButton = app.inventoryThirdButton[2]
-    heightThirdButton = app.inventoryThirdButton[3]
-    xCoordCraftButton = app.inventoryCraftButton[0]
-    yCoordCraftButton = app.inventoryCraftButton[1]
-    widthCraftButton = app.inventoryCraftButton[2]
-    heightCraftButton = app.inventoryCraftButton[3]
-    xCoordEquipX = app.equipXButton[0]
-    yCoordEquipX = app.equipXButton[1]
-    widthEquipX = app.equipXButton[2]
-    heightEquipX = app.equipXButton[3]
     if app.inventoryPressed and (xCoordCloseButton - widthCloseButton/2 < 
                                  mouseX < xCoordCloseButton + 
                                  widthCloseButton/2) and (yCoordCloseButton - 
@@ -232,43 +228,131 @@ def planet_onMousePress(app, mouseX, mouseY):
                                                           mouseY < 
                                                           yCoordCloseButton + 
                                                           heightCloseButton/2):
-        app.inventoryPressed = False
-    elif (xCoordIcon < mouseX < xCoordIcon + widthIcon) and (yCoordIcon < 
-                                                             mouseY < yCoordIcon 
-                                                             + heightIcon):
-        app.inventoryPressed = True
-    elif (xCoordEquipButton < mouseX < xCoordEquipButton + 
+        return True
+
+def equipButtonPress(app, mouseX, mouseY):
+    xCoordEquipButton = app.inventoryEquipButton[0]
+    yCoordEquipButton = app.inventoryEquipButton[1] 
+    widthEquipButton = app.inventoryEquipButton[2]
+    heightEquipButton = app.inventoryEquipButton[3]
+    if app.inventoryPressed and (xCoordEquipButton < mouseX < xCoordEquipButton + 
           widthEquipButton) and (yCoordEquipButton < mouseY < yCoordEquipButton 
                                  + heightEquipButton):
-        app.equipPressed = True
-    elif app.equipPressed and (xCoordEquipX < mouseX < xCoordEquipX + 
+        return True
+
+def equipCloseButtonPress(app, mouseX, mouseY):
+    xCoordEquipX = app.equipXButton[0]
+    yCoordEquipX = app.equipXButton[1]
+    widthEquipX = app.equipXButton[2]
+    heightEquipX = app.equipXButton[3]
+    if app.equipPressed and (xCoordEquipX < mouseX < xCoordEquipX + 
                                widthEquipX) and (yCoordEquipX < mouseY < 
                                                  yCoordEquipX + heightEquipX):
-        app.equipPressed = False
-    elif (xCoordThirdButton < mouseX < xCoordThirdButton + 
+      return True
+
+def thirdButtonPress(app, mouseX, mouseY):
+    xCoordThirdButton = app.inventoryThirdButton[0]
+    yCoordThirdButton = app.inventoryThirdButton[1]
+    widthThirdButton = app.inventoryThirdButton[2]
+    heightThirdButton = app.inventoryThirdButton[3]
+    if app.inventoryPressed and (xCoordThirdButton < mouseX < xCoordThirdButton + 
           widthThirdButton) and (yCoordThirdButton < mouseY < yCoordThirdButton 
                                  + heightThirdButton):
-        app.thirdButtonPressed = True
-    elif (xCoordCraftButton < mouseX < xCoordCraftButton + 
+        return True
+
+def craftButtonPress(app, mouseX, mouseY):
+    xCoordCraftButton = app.inventoryCraftButton[0]
+    yCoordCraftButton = app.inventoryCraftButton[1]
+    widthCraftButton = app.inventoryCraftButton[2]
+    heightCraftButton = app.inventoryCraftButton[3]
+    if app.inventoryPressed and (xCoordCraftButton < mouseX < xCoordCraftButton + 
           widthCraftButton) and (yCoordCraftButton < mouseY < yCoordCraftButton 
                                  + heightCraftButton):
-        app.craftPressed = True
-    cellWidth = app.inventoryGridWidth/app.inventoryCols
-    cellHeight = app.inventoryGridHeight/app.inventoryRows
-    cellCol = (mouseX - app.inventoryGridTopLeft[0]) // cellWidth
-    cellRow = (mouseY - app.inventoryGridTopLeft[1]) // cellHeight
-    if (0 <= cellRow < app.inventoryRows) and (0 <= cellCol < 
-                                               app.inventoryCols) and (
-                                                   app.selectedRowCol == None):
-        app.selectedRowCol = (cellRow, cellCol)
-    #deselect if they press the same one again
-    elif app.selectedRowCol != None:
+        return True
+    
+def cellSelector(app, mouseX, mouseY, cellRow, cellCol):
+    if (app.inventoryPressed) and (cellRow, cellCol) != (app.selectedRowCol
+                                                           ) and (0 <= cellRow < 
+                                                       app.inventoryRows) and (
+                                                           0 <= cellCol < 
+                                                           app.inventoryCols):
+        return True
+
+def cellDeselector(app, mouseX, mouseY, cellWidth, cellHeight):
+    if app.selectedRowCol != None and app.inventoryPressed:
         selectedColLeftX = app.inventoryGridTopLeft[0] + cellWidth * app.selectedRowCol[1]
         selectedColLeftY = app.inventoryGridTopLeft[1] + cellWidth * app.selectedRowCol[0]
         if (selectedColLeftX < mouseX < selectedColLeftX + cellWidth) and (
             selectedColLeftY < mouseY < selectedColLeftY + cellHeight):
-            app.selectedRowCol = None
-    
+            return True
+        
+def materialCollected(app):
+    if not app.inventoryPressed:
+        minDistance = -1
+        minDot = 3
+        for x in app.dots:
+            pendingDistance = distance(x.x, x.y, app.width/2, app.height/2)
+            if pendingDistance < app.player.currTool.hitRadius:
+                if pendingDistance < minDistance or minDistance == -1:
+                    minDistance = pendingDistance
+                    minDot = x
+        if minDot != 3:
+            return (True, minDot.materialName)
+        
+def emptyCell(app, mouseX, mouseY):
+    if app.inventoryPressed and app.selectedRowCol != None:
+        #check if click was not inside the inventory window
+        if (mouseX < app.width/2 - 250 or mouseX > app.width/2 + 250) or (mouseY
+            < app.height/2 - 250 or mouseY > app.height/2 + 250):
+            return True
+
+def findRightInventoryCell(app, materialName):
+    for x in range(len(app.player.inventory)):
+        for y in range(len(app.player.inventory[0])):
+            if app.player.inventory[x][y] != 0:
+                #check if this inventory slot has the same material as what we want to add
+                #and that the current amount is less than the stacking number for that material
+                if app.player.inventory[x][y][1] == materialName and app.player.inventory[
+                    x][y][0] < materialNameDict[app.player.inventory[x][y][1]].stackNumber:
+                    return (x, y)
+    for x in range(len(app.player.inventory)):
+        for y in range(len(app.player.inventory[0])):
+            if app.player.inventory[x][y] == 0:
+                return (x, y)
+
+def planet_onMousePress(app, mouseX, mouseY):
+    cellWidth = app.inventoryGridWidth/app.inventoryCols
+    cellHeight = app.inventoryGridHeight/app.inventoryRows
+    cellCol = (mouseX - app.inventoryGridTopLeft[0]) // cellWidth
+    cellRow = (mouseY - app.inventoryGridTopLeft[1]) // cellHeight
+    if checkCloseButtonPress(app, mouseX, mouseY):
+        app.inventoryPressed = False
+    elif checkInventoryIconPress(app, mouseX, mouseY):
+        app.inventoryPressed = True
+    elif equipButtonPress(app, mouseX, mouseY):
+        app.equipPressed = True
+    elif equipCloseButtonPress(app, mouseX, mouseY):
+        app.equipPressed = False
+    elif thirdButtonPress(app, mouseX, mouseY):
+        app.thirdButtonPressed = True
+    elif craftButtonPress(app, mouseX, mouseY):
+        app.craftPressed = True
+    elif cellSelector(app, mouseX, mouseY, cellRow, cellCol):
+        app.selectedRowCol = (int(cellRow), int(cellCol))
+    #deselect if they press the same one again
+    elif cellDeselector(app, mouseX, mouseY, cellWidth, cellHeight):
+        app.selectedRowCol = None
+    elif materialCollected(app) != None:
+            clickedDot = materialCollected(app)
+            pendingCell = findRightInventoryCell(app, clickedDot[1])
+            #increase selected inventory slot by 1. Add material name if going from 0 to 1
+            if app.player.inventory[pendingCell[0]][pendingCell[1]] == 0:
+                app.player.inventory[pendingCell[0]][pendingCell[1]] = [1, clickedDot[1]]
+            else:
+                app.player.inventory[pendingCell[0]][pendingCell[1]][0] += 1          
+    elif emptyCell(app, mouseX, mouseY):
+        app.player.inventory[app.selectedRowCol[0]][app.selectedRowCol[1]] = 0
+
 #conceptual understanding of side scrolling implementation learned from demo 
 #provided by CMU professor Mike Taylor
 #https://piazza.com/class/lkq6ivek5cg1bc/post/2231
@@ -281,10 +365,8 @@ def planet_redrawAll(app):
     #a given element in app.dots is an instance of the Dot class with attributes 
     #x, y, size and color
     for x in app.dots:
-        xCoord = x.x + app.scrollX
-        yCoord = x.y + app.scrollY
         #draw dots
-        drawCircle(xCoord, yCoord, x.size, fill = x.color)
+        drawCircle(x.x, x.y, x.size, fill = x.color)
     if app.inventoryPressed:
         drawInventory(app)
     if app.equipPressed:

@@ -4,8 +4,8 @@ class Player:
         self.health = 10
         self.inventoryCols = 5
         self.inventoryRows = 2
-        self.inventory = [([None] * self.inventoryCols) for row in range(self.inventoryRows)]
+        self.inventory = [([0] * self.inventoryCols) for row in range(self.inventoryRows)]
         self.currTool = None
         self.currArmor = None
-    
+
  
