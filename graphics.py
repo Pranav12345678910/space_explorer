@@ -79,10 +79,12 @@ def onAppStart(app):
     app.equipXButton = (575, 275, 50, 50)
     app.craftXButton = (1475, 275, 50, 50)
     app.equipToolButton = (500, 650, 200, 50)
+    app.unequipToolButton = (500, 575, 200, 50)
     app.craftingListTopLeft = (1300, 375)
     app.craftingCellWidth = 200
     app.craftingCellHeight = 50
     app.craftedImpossible = False
+
 
 def drawInventoryIcon(app):
     drawRect(*app.inventoryIconCoords, opacity = 30) 
@@ -183,6 +185,10 @@ def drawEquipWindow(app):
     #draw equip tool button
     drawRect(*app.equipToolButton, fill = "white", border = "black", align = "center")
     drawLabel("Equip Tool from selected Cell", app.equipToolButton[0], app.equipToolButton[1])
+    #draw unequip tool button
+    drawRect(*app.unequipToolButton, fill = "white", border = "black", align = "center")
+    drawLabel("Unequip Current Tool", app.unequipToolButton[0], app.unequipToolButton[1])
+        
 
 def drawCraftingCells(app):
     drawRect(app.craftingListTopLeft[0], app.craftingListTopLeft[1], 
@@ -203,6 +209,8 @@ def drawCraftWindow(app):
     #click a cell to try creating an item, and if they can create it, it is
     #added to their inventory and if not then a message saying they don't have
     #the necessary materials is displayed
+    if app.craftedImpossible:
+        drawLabel("Don't have necessary materials to craft", app.width/2, 200, size = 40)
     drawRect(app.width/2 + 300, app.height/2 - 250, 300, 500, fill = "white", 
              border = "black", borderWidth = 2 * app.cellBorderWidth)
     #draw close button
@@ -361,10 +369,7 @@ def findRightInventoryCell(app, materialName):
                 if app.player.inventory[x][y][1] == materialName and app.player.inventory[
                     x][y][0] < materialNameDict[app.player.inventory[x][y][1]].stackNumber:
                     return (x, y)
-    for x in range(len(app.player.inventory)):
-        for y in range(len(app.player.inventory[0])):
-            if app.player.inventory[x][y] == 0:
-                return (x, y)
+    return findNextEmptyCell(app)
 
 def craftCloseButtonPress(app, mouseX, mouseY):
     xCoordCraftX = app.craftXButton[0]
@@ -419,8 +424,7 @@ def subtractMaterials(app, recipe):
                     remainingMaterials[y[1]] -= y[0]
                     app.player.inventory[x][y] = 0
 
-
-def addTool(app, tool):
+def findNextEmptyCell(app):
     nextEmptyCell = None
     for x in range(len(app.player.inventory)):
         for y in range(len(app.player.inventory[0])):
@@ -429,6 +433,10 @@ def addTool(app, tool):
                 break
         if nextEmptyCell:
             break
+    return nextEmptyCell
+
+def addTool(app, tool):
+    nextEmptyCell = findNextEmptyCell(app)
     app.player.inventory[nextEmptyCell[0]][nextEmptyCell[1]] = [1, tool.name]
     
 def equipToolButtonPress(app, mouseX, mouseY):
@@ -440,6 +448,16 @@ def equipToolButtonPress(app, mouseX, mouseY):
           widthEquipToolButton) and (yCoordEquipToolButton < mouseY < yCoordEquipToolButton 
                                  + heightEquipToolButton):
         return True and app.selectedRowCol != None
+
+def returnToolToInventoryButtonPress(app, mouseX, mouseY):
+    widthUnequipToolButton = app.unequipToolButton[2]
+    heightUnequipToolButton = app.unequipToolButton[3]
+    xCoordUnequipToolButton = app.unequipToolButton[0] - widthUnequipToolButton/2
+    yCoordUnequipToolButton = app.unequipToolButton[1] - heightUnequipToolButton/2
+    if app.equipPressed and (xCoordUnequipToolButton < mouseX < xCoordUnequipToolButton + 
+          widthUnequipToolButton) and (yCoordUnequipToolButton < mouseY < yCoordUnequipToolButton 
+                                 + heightUnequipToolButton):
+        return True
 
 def planet_onMousePress(app, mouseX, mouseY):
     cellWidth = app.inventoryGridWidth/app.inventoryCols
@@ -459,6 +477,10 @@ def planet_onMousePress(app, mouseX, mouseY):
         toolInSelectedCell = toolNameDict[toolName]
         app.player.currTool = toolInSelectedCell
         app.player.inventory[app.selectedRowCol[0]][app.selectedRowCol[1]] = 0
+    elif returnToolToInventoryButtonPress(app, mouseX, mouseY):
+        nextEmptyCell = findNextEmptyCell(app)
+        app.player.inventory[nextEmptyCell[0]][nextEmptyCell[1]] = [1, app.player.currTool.name]
+        app.player.currTool = hand
     elif craftCloseButtonPress(app, mouseX, mouseY):
         app.craftPressed = False
     elif thirdButtonPress(app, mouseX, mouseY):
@@ -489,7 +511,6 @@ def planet_onMousePress(app, mouseX, mouseY):
             addTool(app, pendingTool)
         else:
             app.craftedImpossible = True
-            #if this is true, we have to draw a label telling the user that they have crafted something impossible
 
 #conceptual understanding of side scrolling implementation learned from demo 
 #provided by CMU professor Mike Taylor
