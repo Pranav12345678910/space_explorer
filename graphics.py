@@ -1,4 +1,5 @@
 from cmu_graphics import *
+import copy
 import random
 from planet import Planet
 import math
@@ -13,8 +14,7 @@ from armour import Armour
 #a graphical representation for the armor currently being worn, tool being held, etc. 
 #To - do
 #pending functions: what to do with third button in inventory
-#currently implementing removing the materials from inventory and adding the tool that was just crafted
-#should I remove side scrolling citations
+#add icons for all the different materials 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
@@ -34,11 +34,13 @@ metal = Material((gray, sand), 10, 30, "metal", 10)
 materialNameDict = {"wood": wood, "metal": metal}
 
 #tools
-axe = Tool(8, 10, 1, 1, "axe", 30, {"wood": 5, "metal": 3})
-pickaxe = Tool(3, 1, 10, 1, "pickaxe", 30, {"wood": 5, "metal": 3})
-sword = Tool(5, 1, 1, 3, "sword", 20, {"wood": 2, metal: 4})
-hand = Tool(1, 1, 1, 1, "hand", 100, {})
+axe = Tool(8, {"wood": 10, "metal": 1}, 1, "axe", 100, {"wood": 5, "metal": 3})
+pickaxe = Tool(3, {"metal": 10, "wood": 1}, 1, "pickaxe", 100, {"wood": 5, "metal": 3})
+sword = Tool(5, {"wood": 1, "metal": 1}, 3, "sword", 100, {"wood": 2, "metal": 4})
+hand = Tool(1, {"wood": 1, "metal": 1}, 1, "hand", 100, {})
 toolList = [axe, pickaxe, sword, hand]
+toolNameDict = {"axe": axe, "pickaxe": pickaxe, "sword": sword, "hand": hand}
+
 
 #armours
 skin = Armour(1, 1, "skin")
@@ -76,6 +78,7 @@ def onAppStart(app):
     app.craftPressed = False
     app.equipXButton = (575, 275, 50, 50)
     app.craftXButton = (1475, 275, 50, 50)
+    app.equipToolButton = (500, 650, 200, 50)
     app.craftingListTopLeft = (1300, 375)
     app.craftingCellWidth = 200
     app.craftingCellHeight = 50
@@ -154,7 +157,7 @@ def drawInventory(app):
              fill = "white", border = "black", 
              borderWidth = 2 * app.cellBorderWidth)
     drawLabel("Inventory", app.width/2, app.height/2 - 150, size = 100)
-    drawLabel("Click on a cell to select. Click outside to empty. Press d" + 
+    drawLabel("Click on a cell to select. Click outside to empty. Press e" + 
               " to throw away only one piece", app.width/2, 100, size = 40)
     drawInventoryCloseButton(app)
     drawInventoryGrid(app)
@@ -177,6 +180,9 @@ def drawEquipWindow(app):
              fill = "white", border = "black")
     drawLabel("X", app.equipXButton[0] + app.equipXButton[2]/2, 
               app.equipXButton[1] + app.equipXButton[3]/2, size = 50)
+    #draw equip tool button
+    drawRect(*app.equipToolButton, fill = "white", border = "black", align = "center")
+    drawLabel("Equip Tool from selected Cell", app.equipToolButton[0], app.equipToolButton[1])
 
 def drawCraftingCells(app):
     drawRect(app.craftingListTopLeft[0], app.craftingListTopLeft[1], 
@@ -227,6 +233,14 @@ def planet_onKeyPress(app, key):
         updateDots(app, +1, "y")
     elif key == "space":
         setActiveScreen("solarSystem")
+    elif key == "e":
+        row = app.selectedRowCol[0]
+        col = app.selectedRowCol[1]
+        if app.player.inventory[row][col] != 0:
+            if app.player.inventory[row][col][0] == 1:
+                app.player.inventory[row][col] = 0
+            else:
+                app.player.inventory[row][col][0] -= 1
 
 def planet_onKeyHold(app, keys):
     if "a" in keys:
@@ -363,32 +377,69 @@ def craftCloseButtonPress(app, mouseX, mouseY):
         return True
 
 def craftCellSelector(app, mouseX, mouseY):
-    cellRow = mouseY - app.craftingListTopLeft[1] // app.craftingCellHeight 
-    if app.craftingListTopLeft[0] < mouseX < app.craftingListTopLeft[0] + app.craftingCellWidth:
+    cellRow = (mouseY - app.craftingListTopLeft[1]) // app.craftingCellHeight 
+    if (app.craftingListTopLeft[0] < mouseX < app.craftingListTopLeft[0] + 
+        app.craftingCellWidth) and app.craftPressed:
         if 0 <= cellRow < len(toolList):
             return (True, toolList[cellRow])
 
 def ableToCraft(app, tool):
-    recipe = tool.recipe
     woodTotal = 0
     metalTotal = 0
     for x in app.player.inventory:
         for y in x:
             if y == 0:
                 continue
-            if y[0] == "wood":
-                woodTotal += 1
-            else:
-                metalTotal += 1
-            if woodTotal == tool.recipe[wood] and metalTotal == tool.recipe[metal]:
+            if y[1] == "wood":
+                woodTotal += y[0]
+            if y[0]:
+                metalTotal += y[0]
+            if woodTotal >= tool.recipe[wood.name] and metalTotal >= tool.recipe[metal.name]:
                 return True
     return False
 
 def subtractMaterials(app, recipe):
-    pass
+    remainingMaterials = copy.copy(recipe)
+    for x in range(len(app.player.inventory)):
+        for y in range(len(app.player.inventory[x])):
+            pendingCell = app.player.inventory[x][y]
+            if pendingCell == 0:
+                continue
+            pendingCellMaterial = pendingCell[1]
+            if pendingCellMaterial in recipe and remainingMaterials[pendingCellMaterial] > 0:
+                #if there is more or the same of this material in the cell 
+                #than what the recipe demands, take all the recipe demands
+                #from the cell
+                if pendingCell[0] >= remainingMaterials[pendingCellMaterial]:
+                    pendingCell[0] -= remainingMaterials[pendingCellMaterial]
+                    if pendingCell[0] == 0:
+                        app.player.inventory[x][y] = 0
+                    remainingMaterials[pendingCellMaterial] = 0
+                else:
+                    remainingMaterials[y[1]] -= y[0]
+                    app.player.inventory[x][y] = 0
+
 
 def addTool(app, tool):
-    pass
+    nextEmptyCell = None
+    for x in range(len(app.player.inventory)):
+        for y in range(len(app.player.inventory[0])):
+            if app.player.inventory[x][y] == 0:
+                nextEmptyCell = (x, y)
+                break
+        if nextEmptyCell:
+            break
+    app.player.inventory[nextEmptyCell[0]][nextEmptyCell[1]] = [1, tool.name]
+    
+def equipToolButtonPress(app, mouseX, mouseY):
+    widthEquipToolButton = app.equipToolButton[2]
+    heightEquipToolButton = app.equipToolButton[3]
+    xCoordEquipToolButton = app.equipToolButton[0] - widthEquipToolButton/2
+    yCoordEquipToolButton = app.equipToolButton[1] - heightEquipToolButton/2
+    if app.equipPressed and (xCoordEquipToolButton < mouseX < xCoordEquipToolButton + 
+          widthEquipToolButton) and (yCoordEquipToolButton < mouseY < yCoordEquipToolButton 
+                                 + heightEquipToolButton):
+        return True and app.selectedRowCol != None
 
 def planet_onMousePress(app, mouseX, mouseY):
     cellWidth = app.inventoryGridWidth/app.inventoryCols
@@ -403,6 +454,11 @@ def planet_onMousePress(app, mouseX, mouseY):
         app.equipPressed = True
     elif equipCloseButtonPress(app, mouseX, mouseY):
         app.equipPressed = False
+    elif equipToolButtonPress(app, mouseX, mouseY):
+        toolName = app.player.inventory[app.selectedRowCol[0]][app.selectedRowCol[1]][1]
+        toolInSelectedCell = toolNameDict[toolName]
+        app.player.currTool = toolInSelectedCell
+        app.player.inventory[app.selectedRowCol[0]][app.selectedRowCol[1]] = 0
     elif craftCloseButtonPress(app, mouseX, mouseY):
         app.craftPressed = False
     elif thirdButtonPress(app, mouseX, mouseY):
@@ -417,15 +473,17 @@ def planet_onMousePress(app, mouseX, mouseY):
     elif materialCollected(app) != None:
             clickedDot = materialCollected(app)
             pendingCell = findRightInventoryCell(app, clickedDot[1])
-            #increase selected inventory slot by 1. Add material name if going from 0 to 1
+            #increase selected inventory slot by appropriate total. 
+            #Add material name if going from 0 to 1
+            collectionFactor = app.player.currTool.efficiencyDict[clickedDot[1]]
             if app.player.inventory[pendingCell[0]][pendingCell[1]] == 0:
-                app.player.inventory[pendingCell[0]][pendingCell[1]] = [1, clickedDot[1]]
+                app.player.inventory[pendingCell[0]][pendingCell[1]] = [collectionFactor, clickedDot[1]]
             else:
-                app.player.inventory[pendingCell[0]][pendingCell[1]][0] += 1          
+                app.player.inventory[pendingCell[0]][pendingCell[1]][0] += collectionFactor         
     elif emptyCell(app, mouseX, mouseY):
         app.player.inventory[app.selectedRowCol[0]][app.selectedRowCol[1]] = 0
-    elif craftCellSelector(app):
-        pendingTool = craftCellSelector(app)[1]
+    elif craftCellSelector(app, mouseX, mouseY):
+        pendingTool = craftCellSelector(app, mouseX, mouseY)[1]
         if ableToCraft(app, pendingTool):
             subtractMaterials(app, pendingTool.recipe)
             addTool(app, pendingTool)

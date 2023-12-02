@@ -1,11 +1,9 @@
 class Tool:
-    def __init__(self, damage, woodEfficiency, metalEfficiency, attackSpeed, 
+    def __init__(self, damage, efficiencyDict, attackSpeed, 
                  name, hitRadius, recipe):
         self.damage = damage
         #how much wood they collect per stroke
-        self.woodEfficiency = woodEfficiency
-        #how much metal they collect per stroke
-        self.metalEfficiency = metalEfficiency
+        self.efficiencyDict = efficiencyDict
         #possible attacks per second
         self.attackSpeed = attackSpeed
         self.name = name
