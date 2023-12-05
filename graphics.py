@@ -1,4 +1,6 @@
+import os, pathlib
 from cmu_graphics import *
+from PIL import Image
 import copy
 import random
 from planet import Planet
@@ -8,12 +10,11 @@ from materials import Material
 from player import Player
 from tool import Tool
 from armour import Armour
+import aStar
 
-#Questions
-#do I need to have an animation play when the user collects materials or 
-#a graphical representation for the armor currently being worn, tool being held, etc. 
 #To - do
-#pending functions: what to do with third button in inventory
+#Add aliens, make them chase the player
+#make third button in inventory for eating food that is in selected cell
 #add icons for all the different materials 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
@@ -27,10 +28,18 @@ middleGreen = rgb(0, 153, 51)
 sand = rgb(194, 178, 128)
 gray = rgb(191, 202, 219)
 
+#images (for materials and sprites)
+#cmu_graphics image knowledge from Pat Virtue's lecture slides:
+#https://www.cs.cmu.edu/~112/lecture/15112_F23_Lec2_Week12_OOP2_inked.pdf
+woodImage = CMUImage(Image.open("images\\3275748.png"))
+metalImage = CMUImage(Image.open("images\\5672236.png"))
+playerImage = CMUImage(Image.open("images\\astronaut-icon-274x512-oyvau7j5.png"))
+#need to find alien image
+
 
 #materials 
-wood = Material((lightBrown, darkBrown), 10, 30, "wood", 10)
-metal = Material((gray, sand), 10, 30, "metal", 10)
+wood = Material((lightBrown, darkBrown), 10, 30, "wood", 10, woodImage)
+metal = Material((gray, sand), 10, 30, "metal", 10, metalImage)
 materialNameDict = {"wood": wood, "metal": metal}
 
 #tools
@@ -50,10 +59,17 @@ skin = Armour(1, 1, "skin")
 def onAppStart(app):
     app.player = Player()
     app.player.currTool = hand
-    app.player.currArmor = skin
-    app.planets = [Planet("green", 30, app.width, app.height, (wood, metal)), 
-                   Planet("blue", 30, app.width, app.height, (wood, metal)), 
-                   Planet("purple", 30, app.width, app.height, (wood, metal))]
+    app.player.currArmor = skin 
+    #top left, top right, width, height
+    app.planetDotGenerationWindow = [app.width/2 - 3 * app.width/2, 
+                                     app.height/2 - 3 * app.height/2, 
+                                     3 * app.width, 3 * app.height]
+    app.planets = [Planet("green", 270, 3 * app.width, 3 * app.height, app.width, 
+                          app.height, (wood, metal)), 
+                          Planet("blue", 270, 3 * app.width, 3 * app.height, 
+                                 app.width, app.height, (wood, metal)), 
+                                 Planet("purple", 270, 3 * app.width, 
+                                        3 * app.height, app.width, app.height, (wood, metal))]
     app.solarSystem = solarSystem(app.planets, app.width/2, app.height/2) 
     app.planet = None
     app.dots = None
@@ -84,7 +100,10 @@ def onAppStart(app):
     app.craftingCellWidth = 200
     app.craftingCellHeight = 50
     app.craftedImpossible = False
-
+    app.usePlayerCoordsX = False
+    app.usePlayerCoordsY = False
+    app.playerCoords = [app.width/2, app.height/2]
+    app.playerSize = 50
 
 def drawInventoryIcon(app):
     drawRect(*app.inventoryIconCoords, opacity = 30) 
@@ -221,25 +240,25 @@ def drawCraftWindow(app):
               app.craftXButton[1] + app.craftXButton[3]/2, size = 50)
     drawCraftingCells(app)
     
+def updateWindow(app, sign, direction):
+    if direction == "x":
+        app.planetDotGenerationWindow[0] += 5 * sign * app.player.currArmor.speedFactor
+    else:
+        app.planetDotGenerationWindow[1] += 5 * sign * app.player.currArmor.speedFactor
+
 def updateDots(app, sign, direction):
     if direction == "x":
         for x in app.dots:
-            x.x = x.x + 5 * sign * app.player.currArmor.speedFactor
+            x.x += 5 * sign * app.player.currArmor.speedFactor
+        app.planetDotGenerationWindow[0] += 5 * sign * app.player.currArmor.speedFactor
     else:
         for x in app.dots:
-            x.y = x.y + 5 * sign * app.player.currArmor.speedFactor
+            x.y += 5 * sign * app.player.currArmor.speedFactor
+        app.planetDotGenerationWindow[1] += 5 * sign * app.player.currArmor.speedFactor
 
 #all functions for planet scene
 def planet_onKeyPress(app, key):
-    if key == "left":
-        updateDots(app, +1, "x")
-    elif key == "right":
-        updateDots(app, -1, "x")
-    elif key == "up":
-        updateDots(app, -1, "y")
-    elif key == "down":
-        updateDots(app, +1, "y")
-    elif key == "space":
+    if key == "space":
         setActiveScreen("solarSystem")
     elif key == "e":
         row = app.selectedRowCol[0]
@@ -252,13 +271,50 @@ def planet_onKeyPress(app, key):
 
 def planet_onKeyHold(app, keys):
     if "a" in keys:
-        updateDots(app, +1, "x")
-    if "d" in keys:
-        updateDots(app, -1, "x")
-    if "w" in keys:
-        updateDots(app, +1, "y")
+        if app.planetDotGenerationWindow[0] >= 0:
+            if app.playerCoords[0] > 0:
+                app.playerCoords[0] -= 5 * app.player.currArmor.speedFactor     
+                updateWindow(app, +1, "x")
+                app.usePlayerCoordsX = True
+        elif app.usePlayerCoordsX:
+            app.playerCoords[0] -= 5 * app.player.currArmor.speedFactor
+        else:
+            updateDots(app, +1, "x")
     if "s" in keys:
-        updateDots(app, -1, "y")
+        if app.planetDotGenerationWindow[1] + app.planetDotGenerationWindow[3] <= app.height:
+            if app.playerCoords[1] < app.height:
+                app.playerCoords[0] += 5 * app.player.currArmor.speedFactor     
+                updateWindow(app, -1, "y")
+                app.usePlayerCoordsY = True
+        elif app.usePlayerCoordsY:
+            app.playerCoords[1] += 5 * app.player.currArmor.speedFactor
+        else:
+            updateDots(app, -1, "y")
+    if "w" in keys:
+        if app.planetDotGenerationWindow[1] >= 0:
+            if app.playerCoords[1] > 0:
+                app.playerCoords[1] -= 5 * app.player.currArmor.speedFactor     
+                updateWindow(app, +1, "y")
+                app.usePlayerCoordsY = True
+        elif app.usePlayerCoordsY:
+            app.playerCoords[1] -= 5 * app.player.currArmor.speedFactor 
+        else:
+            updateDots(app, +1, "y")
+    if "d" in keys:
+        if app.planetDotGenerationWindow[0] + app.planetDotGenerationWindow[2] <= app.width:
+            if app.playerCoords[0] < app.width:
+                app.playerCoords[0] += 5 * app.player.currArmor.speedFactor     
+                updateWindow(app, -1, "x")
+                app.usePlayerCoordsX = True
+        elif app.usePlayerCoordsX:
+            app.playerCoords[0] += 5 * app.player.currArmor.speedFactor 
+        else:
+            updateDots(app, -1, "x")
+    if app.playerCoords[0] == app.width/2: 
+        app.usePlayerCoordsX = False
+    if app.playerCoords[1] == app.height/2:
+        app.usePlayerCoordsY = False
+
 
 def checkInventoryIconPress(app, mouseX, mouseY):
     xCoordIcon = app.inventoryIconCoords[0]
@@ -342,7 +398,9 @@ def cellDeselector(app, mouseX, mouseY, cellWidth, cellHeight):
         
 def materialCollected(app):
     if not app.inventoryPressed:
+        #some negative
         minDistance = -1
+        #some int
         minDot = 3
         for x in app.dots:
             pendingDistance = distance(x.x, x.y, app.width/2, app.height/2)
@@ -473,13 +531,18 @@ def planet_onMousePress(app, mouseX, mouseY):
     elif equipCloseButtonPress(app, mouseX, mouseY):
         app.equipPressed = False
     elif equipToolButtonPress(app, mouseX, mouseY):
+        if app.player.currTool != hand:
+            nextEmptyCell = findNextEmptyCell(app)
+            if nextEmptyCell != None:
+                app.player.inventory[nextEmptyCell[0]][nextEmptyCell[1]] = [1, app.player.currTool.name]
         toolName = app.player.inventory[app.selectedRowCol[0]][app.selectedRowCol[1]][1]
         toolInSelectedCell = toolNameDict[toolName]
         app.player.currTool = toolInSelectedCell
         app.player.inventory[app.selectedRowCol[0]][app.selectedRowCol[1]] = 0
     elif returnToolToInventoryButtonPress(app, mouseX, mouseY):
         nextEmptyCell = findNextEmptyCell(app)
-        app.player.inventory[nextEmptyCell[0]][nextEmptyCell[1]] = [1, app.player.currTool.name]
+        if nextEmptyCell != None:
+            app.player.inventory[nextEmptyCell[0]][nextEmptyCell[1]] = [1, app.player.currTool.name]
         app.player.currTool = hand
     elif craftCloseButtonPress(app, mouseX, mouseY):
         app.craftPressed = False
@@ -495,13 +558,19 @@ def planet_onMousePress(app, mouseX, mouseY):
     elif materialCollected(app) != None:
             clickedDot = materialCollected(app)
             pendingCell = findRightInventoryCell(app, clickedDot[1])
-            #increase selected inventory slot by appropriate total. 
-            #Add material name if going from 0 to 1
+            #increase selected inventory slot by appropriate total 
             collectionFactor = app.player.currTool.efficiencyDict[clickedDot[1]]
-            if app.player.inventory[pendingCell[0]][pendingCell[1]] == 0:
-                app.player.inventory[pendingCell[0]][pendingCell[1]] = [collectionFactor, clickedDot[1]]
-            else:
-                app.player.inventory[pendingCell[0]][pendingCell[1]][0] += collectionFactor         
+            if pendingCell != None:
+                x = 0
+                while x < collectionFactor:
+                    pendingCell = findRightInventoryCell(app, clickedDot[1])
+                    if pendingCell != None:
+                        pendingInventorySlot = app.player.inventory[pendingCell[0]][pendingCell[1]]
+                        if isinstance(pendingInventorySlot, int):
+                            app.player.inventory[pendingCell[0]][pendingCell[1]] = [1, clickedDot[1]]
+                        else:
+                            app.player.inventory[pendingCell[0]][pendingCell[1]][0] += 1         
+                    x += 1    
     elif emptyCell(app, mouseX, mouseY):
         app.player.inventory[app.selectedRowCol[0]][app.selectedRowCol[1]] = 0
     elif craftCellSelector(app, mouseX, mouseY):
@@ -514,18 +583,23 @@ def planet_onMousePress(app, mouseX, mouseY):
 
 #conceptual understanding of side scrolling implementation learned from demo 
 #provided by CMU professor Mike Taylor
+#heavily heavily modified from demo, but technically I did learn the basics
+#from it
 #https://piazza.com/class/lkq6ivek5cg1bc/post/2231
 def planet_redrawAll(app):
-    xValue = app.width/2
-    yValue = app.height/2
-    #draw player at center
+    #draw player at center, or playerCoords if usePlayerCoords is True
     drawRect(0, 0, app.width, app.height, fill = app.planet.backgroundColor)
-    drawCircle(xValue, yValue, 10, fill = "black")
+    drawImage(playerImage, app.playerCoords[0] - app.playerSize/2, 
+              app.playerCoords[1] - app.playerSize/2, width = app.playerSize, height = app.playerSize)
+    #drawCircle(app.playerCoords[0], app.playerCoords[1], 10, fill = "black")
     #a given element in app.dots is an instance of the Dot class with attributes 
     #x, y, size and color
     for x in app.dots:
         #draw dots
-        drawCircle(x.x, x.y, x.size, fill = x.color)
+        if 0 < x.x < app.width and 0 < x.y < app.height:
+            drawImage(materialNameDict[x.materialName].image, x.x - x.size/2, 
+                      x.y - x.size/2, width = x.size, height = x.size)
+            #drawCircle(x.x, x.y, x.size, fill = x.color)
     if app.inventoryPressed:
         drawInventory(app)
     if app.equipPressed:
@@ -534,6 +608,14 @@ def planet_redrawAll(app):
         drawCraftWindow(app)
     #draw inventory icon
     drawInventoryIcon(app)
+    #testing grid thing
+    '''
+    stepSizeX = app.width/11
+    stepSizeY = app.height/11
+    for x in range(11):
+        for y in range(11):
+            drawRect(x * stepSizeX, y * stepSizeY, stepSizeX, stepSizeY, fill = None, border = 'black', borderWidth = app.cellBorderWidth)
+    '''
 
 #all functions for solarSystem scene
 def solarSystem_redrawAll(app):
@@ -570,6 +652,8 @@ def solarSystem_onMousePress(app, mouseX, mouseY):
             app.selectedPlanet = maxX
             app.planet = app.planets[app.selectedPlanet - 1]
             app.dots = app.planet.generateDots()
+            print(aStar.convertToBoard(app))
+
 
 #conceptual understanding of multiple screens implementation learned from demo 
 #provided by CMU professor Mike Taylor
