@@ -247,9 +247,9 @@ def drawEquipWindow(app):
 
 def drawCraftingCells(app):
     drawRect(app.craftingListTopLeft[0], app.craftingListTopLeft[1], 
-             app.craftingCellWidth, len(app.toolList) * app.craftingCellHeight, 
+             app.craftingCellWidth, (len(app.toolList) - 1) * app.craftingCellHeight, 
              fill = None, border = "black", borderWidth = 2 * app.cellBorderWidth)
-    for x in range(len(app.toolList)):
+    for x in range(len(app.toolList) - 1):
         drawRect(app.craftingListTopLeft[0], app.craftingListTopLeft[1] + x * 
                  app.craftingCellHeight, app.craftingCellWidth, 
                  app.craftingCellHeight, fill = None, borderWidth = 
@@ -483,7 +483,7 @@ def cellDeselector(app, mouseX, mouseY, cellWidth, cellHeight):
             selectedColLeftY < mouseY < selectedColLeftY + cellHeight):
             return True
         
-def materialCollected(app):
+def dotClicked(app):
     if not app.inventoryPressed:
         #some negative
         minDistance = -1
@@ -493,8 +493,13 @@ def materialCollected(app):
             pendingDistance = distance(x.x, x.y, app.width/2, app.height/2)
             if pendingDistance < app.player.currTool.hitRadius:
                 if pendingDistance < minDistance or minDistance == -1:
-                    minDistance = pendingDistance
-                    minDot = x
+                    if isinstance(x.hostObject, Material):
+                        minDistance = pendingDistance
+                        minDot = x
+                    #can only interact with living Aliens
+                    elif isinstance(x.hostObject, Alien) and x.hostObject.health > 0:
+                        minDistance = pendingDistance
+                        minDot = x
         if minDot != 3:
             return (True, minDot.hostObject)
         
@@ -530,7 +535,7 @@ def craftCellSelector(app, mouseX, mouseY):
     cellRow = (mouseY - app.craftingListTopLeft[1]) // app.craftingCellHeight 
     if (app.craftingListTopLeft[0] < mouseX < app.craftingListTopLeft[0] + 
         app.craftingCellWidth) and app.craftPressed:
-        if 0 <= cellRow < len(app.toolList):
+        if 0 <= cellRow < len(app.toolList) - 1:
             return (True, app.toolList[cellRow])
 
 def ableToCraft(app, tool):
@@ -654,8 +659,8 @@ def planet_onMousePress(app, mouseX, mouseY):
     #deselect if they press the same one again
     elif cellDeselector(app, mouseX, mouseY, cellWidth, cellHeight):
         app.selectedRowCol = None
-    elif materialCollected(app) != None:
-            clickedDot = materialCollected(app)
+    elif dotClicked(app) != None:
+            clickedDot = dotClicked(app)
             #if alien then deal damage to alien, and 
             if isinstance(clickedDot[1], Alien):
                 clickedDot[1].health -= app.player.currTool.damage
