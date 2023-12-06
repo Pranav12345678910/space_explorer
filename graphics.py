@@ -11,12 +11,10 @@ from tool import Tool
 from armour import Armour
 import aStar
 from alien import Alien
+import voronoi
 
-#To - do
-#implement player stamina
-#delete third inventory button and change coords for other two to keep it centered
-#Voronoi Noise + only spawn aliens outside the initial visible rectangle 
-#Change code organization 
+#To do:
+#fix stamina bug
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
@@ -61,10 +59,10 @@ def loadAssets(app):
 
 def newGame(app):
     loadAssets(app)
+    loadMisc(app)
     loadPlayer(app)
     loadPlanetSolarSystem(app)
     loadButtonInfo(app)
-    loadMisc(app)
 
 def loadPlayer(app):
     app.player = Player()
@@ -72,16 +70,32 @@ def loadPlayer(app):
     app.player.currArmor = app.skin
 
 def loadPlanetSolarSystem(app):
-    #top left, top right, width, height
+    #top left, width, height
     app.planetDotGenerationWindow = [app.width/2 - 3 * app.width/2, 
                                      app.height/2 - 3 * app.height/2, 
                                      3 * app.width, 3 * app.height]
-    app.planets = [Planet("green", 270, 3 * app.width, 3 * app.height, app.width, 
-                          app.height, (app.wood, app.metal), 10, (app.weakAlien,)), 
-                          Planet("blue", 270, 3 * app.width, 3 * app.height, 
-                                 app.width, app.height, (app.wood, app.metal), 10, (app.weakAlien,)), 
-                                 Planet("purple", 270, 3 * app.width, 
-                                        3 * app.height, app.width, app.height, (app.wood, app.metal), 10, (app.weakAlien,))]
+    app.voronoiSeeds = voronoi.getSeeds((app.planetDotGenerationWindow[0], 
+                                        app.planetDotGenerationWindow[0] + 
+                                        app.planetDotGenerationWindow[2]), 
+                                        (app.planetDotGenerationWindow[1], 
+                                         app.planetDotGenerationWindow[1] +
+                                        app.planetDotGenerationWindow[3]), 
+                                        app.numSeeds)
+    app.planets = [Planet("green", 270, app.planetDotGenerationWindow[2], 
+                          app.planetDotGenerationWindow[3], app.width, 
+                          app.height, (app.wood, app.metal), 10, (app.weakAlien,), 
+                          app.voronoiSeeds), 
+                          Planet("blue", 270, app.planetDotGenerationWindow[2], 
+                                 app.planetDotGenerationWindow[3], 
+                                 app.width, app.height, (app.wood, app.metal), 10, 
+                                 (app.weakAlien,), 
+                                 app.voronoiSeeds), 
+                                 Planet("purple", 270,
+                                        app.planetDotGenerationWindow[2], 
+                                        app.planetDotGenerationWindow[3], 
+                                        app.width, app.height, 
+                                        (app.wood, app.metal), 10, 
+                                        (app.weakAlien,), app.voronoiSeeds)]
     app.solarSystem = solarSystem(app.planets, app.width/2, app.height/2) 
     app.planet = None
     app.dots = None
@@ -92,9 +106,8 @@ def loadPlanetSolarSystem(app):
 def loadButtonInfo(app):
     app.inventoryIconCoords = (50, 850, 100, 100)
     app.inventoryXButton = (app.width/2 + 200, app.height/2 - 200, 50, 50)
-    app.inventoryCraftButton = (app.width/2 - 200, app.height/2 - 75, 100, 50)
-    app.inventoryEquipButton = (app.width/2 - 50, app.height/2 - 75, 100, 50)
-    app.inventoryThirdButton = (app.width/2 + 100, app.height/2 - 75, 100, 50)
+    app.inventoryCraftButton = (app.width/2 - 200, app.height/2 - 75, 175, 50)
+    app.inventoryEquipButton = (app.width/2 + 25, app.height/2 - 75, 175, 50)
     app.inventoryPressed = False
     app.inventoryGridTopLeft = (app.width/2 - 200, app.height/2)
     app.inventoryCols = app.player.inventoryCols
@@ -104,7 +117,6 @@ def loadButtonInfo(app):
     app.cellBorderWidth = 2
     app.equipPressed = False
     app.selectedRowCol = None
-    app.thirdButtonPressed = False
     app.craftPressed = False
     app.equipXButton = (575, 275, 50, 50)
     app.craftXButton = (1475, 275, 50, 50)
@@ -128,6 +140,9 @@ def loadMisc(app):
     app.stepsPerSecond = 30
     app.gameOver = False
     app.paused = False
+    app.stepCounter = 0
+    app.maxDotsPerVoronoiZone = 18
+    app.numSeeds = 15
 
 def onAppStart(app):
     newGame(app)
@@ -192,13 +207,6 @@ def drawInventoryButtons(app):
     drawLabel("Equip", app.inventoryEquipButton[0] + 
               app.inventoryEquipButton[2]/2, app.inventoryEquipButton[1] + 
               app.inventoryEquipButton[3]/2)
-    #draw select button cell
-    drawRect(app.inventoryThirdButton[0], app.inventoryThirdButton[1], 
-             app.inventoryThirdButton[2], app.inventoryThirdButton[3],
-             fill = None, border = "black", borderWidth = app.cellBorderWidth)
-    drawLabel("Third Button", app.inventoryThirdButton[0] + 
-              app.inventoryThirdButton[2]/2, app.inventoryThirdButton[1] + 
-              app.inventoryThirdButton[3]/2)
 
 def drawInventory(app):
     drawRect(app.width/2, app.height/2, 500, 500, align = "center", 
@@ -333,46 +341,59 @@ def planet_onKeyPress(app, key):
         newGame(app)
 
 def planet_onKeyHold(app, keys):
-    if "a" in keys:
-        if app.planetDotGenerationWindow[0] >= 0:
-            if app.playerCoords[0] > 0:
-                app.playerCoords[0] -= 5 * app.player.currArmor.speedFactor     
-                updateWindow(app, +1, "x")
-                app.usePlayerCoordsX = True
-        elif app.usePlayerCoordsX:
-            app.playerCoords[0] -= 5 * app.player.currArmor.speedFactor
-        else:
-            updateDots(app, +1, "x")
-    if "s" in keys: 
-        if app.planetDotGenerationWindow[1] + app.planetDotGenerationWindow[3] <= app.height:
-            if app.playerCoords[1] < app.height:
-                app.playerCoords[1] += 5 * app.player.currArmor.speedFactor     
-                updateWindow(app, -1, "y")
-                app.usePlayerCoordsY = True
-        elif app.usePlayerCoordsY:
-            app.playerCoords[1] += 5 * app.player.currArmor.speedFactor
-        else:
-            updateDots(app, -1, "y")
-    if "w" in keys:
-        if app.planetDotGenerationWindow[1] >= 0:
-            if app.playerCoords[1] > 0:
-                app.playerCoords[1] -= 5 * app.player.currArmor.speedFactor     
-                updateWindow(app, +1, "y")
-                app.usePlayerCoordsY = True
-        elif app.usePlayerCoordsY:
-            app.playerCoords[1] -= 5 * app.player.currArmor.speedFactor 
-        else:
-            updateDots(app, +1, "y")
-    if "d" in keys:
-        if app.planetDotGenerationWindow[0] + app.planetDotGenerationWindow[2] <= app.width:
-            if app.playerCoords[0] < app.width:
-                app.playerCoords[0] += 5 * app.player.currArmor.speedFactor     
-                updateWindow(app, -1, "x")
-                app.usePlayerCoordsX = True
-        elif app.usePlayerCoordsX:
-            app.playerCoords[0] += 5 * app.player.currArmor.speedFactor 
-        else:
-            updateDots(app, -1, "x")
+    if app.player.stamina > 0:
+        if "a" in keys:
+            if app.planetDotGenerationWindow[0] >= 0:
+                if app.playerCoords[0] > 0:
+                    app.playerCoords[0] -= 5 * app.player.currArmor.speedFactor     
+                    updateWindow(app, +1, "x")
+                    app.usePlayerCoordsX = True
+                    app.player.stamina -= 1
+            elif app.usePlayerCoordsX:
+                app.playerCoords[0] -= 5 * app.player.currArmor.speedFactor
+                app.player.stamina -= 1
+            else:
+                updateDots(app, +1, "x")
+                app.player.stamina -= 1
+        if "s" in keys: 
+            if app.planetDotGenerationWindow[1] + app.planetDotGenerationWindow[3] <= app.height:
+                if app.playerCoords[1] < app.height:
+                    app.playerCoords[1] += 5 * app.player.currArmor.speedFactor     
+                    updateWindow(app, -1, "y")
+                    app.usePlayerCoordsY = True
+                    app.player.stamina -= 1
+            elif app.usePlayerCoordsY:
+                app.playerCoords[1] += 5 * app.player.currArmor.speedFactor
+                app.player.stamina -= 1
+            else:
+                updateDots(app, -1, "y")
+                app.player.stamina -= 1
+        if "w" in keys:
+            if app.planetDotGenerationWindow[1] >= 0:
+                if app.playerCoords[1] > 0:
+                    app.playerCoords[1] -= 5 * app.player.currArmor.speedFactor     
+                    updateWindow(app, +1, "y")
+                    app.usePlayerCoordsY = True
+                    app.player.stamina -= 1
+            elif app.usePlayerCoordsY:
+                app.playerCoords[1] -= 5 * app.player.currArmor.speedFactor
+                app.player.stamina -= 1
+            else:
+                updateDots(app, +1, "y")
+                app.player.stamina -= 1
+        if "d" in keys:
+            if app.planetDotGenerationWindow[0] + app.planetDotGenerationWindow[2] <= app.width:
+                if app.playerCoords[0] < app.width:
+                    app.playerCoords[0] += 5 * app.player.currArmor.speedFactor     
+                    updateWindow(app, -1, "x")
+                    app.usePlayerCoordsX = True
+                    app.player.stamina -= 1
+            elif app.usePlayerCoordsX:
+                app.playerCoords[0] += 5 * app.player.currArmor.speedFactor 
+                app.player.stamina -= 1
+            else:
+                updateDots(app, -1, "x")
+                app.player.stamina -= 1
     if app.playerCoords[0] == app.width/2: 
         app.usePlayerCoordsX = False
     if app.playerCoords[1] == app.height/2:
@@ -421,16 +442,6 @@ def equipCloseButtonPress(app, mouseX, mouseY):
     if app.equipPressed and (xCoordEquipX < mouseX < xCoordEquipX + 
                                widthEquipX) and (yCoordEquipX < mouseY < 
                                                  yCoordEquipX + heightEquipX):
-        return True
-
-def thirdButtonPress(app, mouseX, mouseY):
-    xCoordThirdButton = app.inventoryThirdButton[0]
-    yCoordThirdButton = app.inventoryThirdButton[1]
-    widthThirdButton = app.inventoryThirdButton[2]
-    heightThirdButton = app.inventoryThirdButton[3]
-    if app.inventoryPressed and (xCoordThirdButton < mouseX < xCoordThirdButton + 
-          widthThirdButton) and (yCoordThirdButton < mouseY < yCoordThirdButton 
-                                 + heightThirdButton):
         return True
 
 def craftButtonPress(app, mouseX, mouseY):
@@ -590,7 +601,10 @@ def planet_onStep(app):
         if app.counter % 10 == 0:
             app.counter = 0
             makeAliensNextMove(app)
+        if app.stepCounter >= 100 and app.player.stamina < 100:
+            app.player.stamina += 1
         app.counter += 1
+        app.stepCounter += 1
 
 def planet_onMousePress(app, mouseX, mouseY):
     cellWidth = app.inventoryGridWidth/app.inventoryCols
@@ -620,8 +634,6 @@ def planet_onMousePress(app, mouseX, mouseY):
         app.player.currTool = app.hand
     elif craftCloseButtonPress(app, mouseX, mouseY):
         app.craftPressed = False
-    elif thirdButtonPress(app, mouseX, mouseY):
-        app.thirdButtonPressed = True
     elif craftButtonPress(app, mouseX, mouseY):
         app.craftPressed = True
     elif cellSelector(app, mouseX, mouseY, cellRow, cellCol):
