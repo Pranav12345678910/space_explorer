@@ -6,15 +6,16 @@ from cmu_graphics import *
 #so that they can be drawn, dots must have all the information to draw: 
 #x-coord, y-coord, size, color
 class Dot:
-    def __init__(self, x, y, color, size, materialName):
+    def __init__(self, x, y, size, image, hostObject):
         self.x = x
         self.y = y
-        self.color = color
         self.size = size
-        self.materialName = materialName
+        self.image = image
+        self.hostObject = hostObject
 
     def draw(self):
-        drawCircle(self.x, self.y, self.size, fill = self.color)
+        drawImage(self.image, self.x - self.size/2, self.y - self.size/2, width 
+                  = self.size, height = self.size)
     
     def __repr__(self):
-        return f"({self.x}, {self.y})"
+        return f"Dot({self.x}, {self.y})"
