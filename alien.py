@@ -13,3 +13,9 @@ class Alien:
     def generateDot(self, widthRange, heightRange):
         return Dot(randrange(*widthRange), 
                 randrange(*heightRange), self.size, self.image, self)
+
+    def __repr__(self):
+        return f"Alien({self.health})"
+    
+    def __copy__(self):
+        return Alien(self.tool, self.armour, self.image, self.size)

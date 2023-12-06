@@ -13,9 +13,10 @@ import aStar
 from alien import Alien
 
 #To - do
-#Add aliens, make them chase the player
-#add player class with health, stamina
-#make third button in inventory for eating food that is in selected cell
+#implement player stamina
+#delete third inventory button and change coords for other two to keep it centered
+#Voronoi Noise + only spawn aliens outside the initial visible rectangle 
+#Change code organization 
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
@@ -28,57 +29,67 @@ middleGreen = rgb(0, 153, 51)
 sand = rgb(194, 178, 128)
 gray = rgb(191, 202, 219)
 
-#images (for materials and sprites)
-#cmu_graphics image knowledge from Pat Virtue's lecture slides:
-#https://www.cs.cmu.edu/~112/lecture/15112_F23_Lec2_Week12_OOP2_inked.pdf
-woodImage = CMUImage(Image.open("images\\3275748.png"))
-metalImage = CMUImage(Image.open("images\\5672236.png"))
-playerImage = CMUImage(Image.open("images\\astronaut-icon-274x512-oyvau7j5.png"))
-weakAlienImage = CMUImage(Image.open("images\\alien.png"))
-strongAlienImage = CMUImage(Image.open("images\\strongAlien.png"))
-#need to find alien image
+def loadAssets(app):
+    #images (for materials and sprites)
+    #cmu_graphics image knowledge from Pat Virtue's lecture slides:
+    #https://www.cs.cmu.edu/~112/lecture/15112_F23_Lec2_Week12_OOP2_inked.pdf
+    #citation: https://www.flaticon.com/free-icon/wood_3275748
+    app.woodImage = CMUImage(Image.open("images\\3275748.png"))
+    #citation: https://www.flaticon.com/free-icon/metal_5672236
+    app.metalImage = CMUImage(Image.open("images\\5672236.png"))
+    #citation: https://www.freepik.com/icon/astronaut_360850#fromView=resource_detail&position=6
+    app.playerImage = CMUImage(Image.open("images\\astronaut-icon-274x512-oyvau7j5.png"))
+    #citation: https://iconduck.com/icons/169421/alien
+    app.weakAlienImage = CMUImage(Image.open("images\\alien.png"))
+    #citation: https://www.flaticon.com/free-icon/alien_6542680
+    app.strongAlienImage = CMUImage(Image.open("images\\strongAlien.png"))
+    #materials 
+    app.wood = Material(10, 30, "wood", 10, app.woodImage)
+    app.metal = Material(10, 30, "metal", 10, app.metalImage)
+    #tools
+    app.axe = Tool(3, {app.wood: 10, app.metal: 1}, 1, "axe", 100, {app.wood: 5, app.metal: 3})
+    app.pickaxe = Tool(2, {app.metal: 10, app.wood: 1}, 1, "pickaxe", 100, {app.wood: 5, app.metal: 3})
+    app.sword = Tool(4, {app.wood: 1, app.metal: 1}, 3, "sword", 100, {app.wood: 2, app.metal: 4})
+    app.hand = Tool(1, {app.wood: 1, app.metal: 1}, 1, "hand", 100, {})
+    app.toolList = [app.axe, app.pickaxe, app.sword, app.hand]
+    #armours
+    app.skin = Armour(1, 1, "skin")
+    app.chainmail = Armour(3, 0.5, "chainmail")
+    #aliens
+    app.weakAlien = Alien(app.hand, app.skin, app.weakAlienImage, 50)
+    app.strongAlien = Alien(app.sword, app.chainmail, app.strongAlienImage, 50)
 
+def newGame(app):
+    loadAssets(app)
+    loadPlayer(app)
+    loadPlanetSolarSystem(app)
+    loadButtonInfo(app)
+    loadMisc(app)
 
-#materials 
-wood = Material(10, 30, "wood", 10, woodImage)
-metal = Material(10, 30, "metal", 10, metalImage)
-
-#tools
-axe = Tool(8, {wood: 10, metal: 1}, 1, "axe", 100, {wood: 5, metal: 3})
-pickaxe = Tool(3, {metal: 10, wood: 1}, 1, "pickaxe", 100, {wood: 5, metal: 3})
-sword = Tool(5, {wood: 1, metal: 1}, 3, "sword", 100, {wood: 2, metal: 4})
-hand = Tool(1, {wood: 1, metal: 1}, 1, "hand", 100, {})
-toolList = [axe, pickaxe, sword, hand]
-
-#armours
-skin = Armour(1, 1, "skin")
-chainmail = Armour(3, 0.5, "chainmail")
-
-#aliens
-weakAlien = Alien(hand, skin, weakAlienImage, 50)
-strongAlien = Alien(sword, chainmail, strongAlienImage, 50)
-
-#onAppStart for all scenes
-def onAppStart(app):
+def loadPlayer(app):
     app.player = Player()
-    app.player.currTool = hand
-    app.player.currArmor = skin 
+    app.player.currTool = app.hand
+    app.player.currArmor = app.skin
+
+def loadPlanetSolarSystem(app):
     #top left, top right, width, height
     app.planetDotGenerationWindow = [app.width/2 - 3 * app.width/2, 
                                      app.height/2 - 3 * app.height/2, 
                                      3 * app.width, 3 * app.height]
     app.planets = [Planet("green", 270, 3 * app.width, 3 * app.height, app.width, 
-                          app.height, (wood, metal), 10, (weakAlien,)), 
+                          app.height, (app.wood, app.metal), 10, (app.weakAlien,)), 
                           Planet("blue", 270, 3 * app.width, 3 * app.height, 
-                                 app.width, app.height, (wood, metal), 10, (weakAlien,)), 
+                                 app.width, app.height, (app.wood, app.metal), 10, (app.weakAlien,)), 
                                  Planet("purple", 270, 3 * app.width, 
-                                        3 * app.height, app.width, app.height, (wood, metal), 10, (weakAlien,))]
+                                        3 * app.height, app.width, app.height, (app.wood, app.metal), 10, (app.weakAlien,))]
     app.solarSystem = solarSystem(app.planets, app.width/2, app.height/2) 
     app.planet = None
     app.dots = None
     app.rotateSpeeds = [random.uniform(0, 0.5) for x in range(len(app.solarSystem.planets))]
     app.angles = [1 for x in range(len(app.solarSystem.planets))]
     app.selectedPlanet = None
+
+def loadButtonInfo(app):
     app.inventoryIconCoords = (50, 850, 100, 100)
     app.inventoryXButton = (app.width/2 + 200, app.height/2 - 200, 50, 50)
     app.inventoryCraftButton = (app.width/2 - 200, app.height/2 - 75, 100, 50)
@@ -103,15 +114,23 @@ def onAppStart(app):
     app.craftingCellWidth = 200
     app.craftingCellHeight = 50
     app.craftedImpossible = False
+    app.playerCoords = [app.width/2, app.height/2]
+    app.healthLabel = (app.width/2, app.height - 200)
+
+def loadMisc(app):
     app.usePlayerCoordsX = False
     app.usePlayerCoordsY = False
-    app.playerCoords = [app.width/2, app.height/2]
     app.playerSize = 50
     app.boardRows = 11
     app.boardCols = 11
     app.playerHit = False
-    app.healthLabel = (app.width/2, app.height - 200)
     app.counter = 0
+    app.stepsPerSecond = 30
+    app.gameOver = False
+    app.paused = False
+
+def onAppStart(app):
+    newGame(app)
 
 def drawInventoryIcon(app):
     drawRect(*app.inventoryIconCoords, opacity = 30) 
@@ -219,14 +238,14 @@ def drawEquipWindow(app):
 
 def drawCraftingCells(app):
     drawRect(app.craftingListTopLeft[0], app.craftingListTopLeft[1], 
-             app.craftingCellWidth, len(toolList) * app.craftingCellHeight, 
+             app.craftingCellWidth, len(app.toolList) * app.craftingCellHeight, 
              fill = None, border = "black", borderWidth = 2 * app.cellBorderWidth)
-    for x in range(len(toolList)):
+    for x in range(len(app.toolList)):
         drawRect(app.craftingListTopLeft[0], app.craftingListTopLeft[1] + x * 
                  app.craftingCellHeight, app.craftingCellWidth, 
                  app.craftingCellHeight, fill = None, borderWidth = 
                  app.cellBorderWidth, border = "black")
-        drawLabel(toolList[x].name, app.craftingListTopLeft[0] + 
+        drawLabel(app.toolList[x].name, app.craftingListTopLeft[0] + 
                   app.craftingCellWidth/2, app.craftingListTopLeft[1] + 
                   x * app.craftingCellHeight + 
                   app.craftingCellHeight/2)
@@ -254,21 +273,11 @@ def getDirection(app, startCell, endCell):
 
 def moveToCell(app, startCell, endCell, dotIndex, cellWidth, cellHeight):
     direction = getDirection(app, startCell, endCell)
-    print("Direction: ", direction)
-    print(app.dots[dotIndex])
     app.dots[dotIndex].x += direction[1] * cellWidth
     app.dots[dotIndex].y += direction[0] * cellHeight
-    print(app.dots[dotIndex])
 
 def makeAliensNextMove(app):
-    #General Algorithm: 
-    # Turn board into cells for alien
-    # find player cell
-    # loop through app.dots
-    # check if a dot is an alien
-    # if alien, check if its cell is on screen
-    # If so, Call aStar on that board with the destination being the player cell and start being alien cell
-    #4. Get first move of the path aStar gives and turn it into a direction to move in
+    numAliensFound = 0
     board = aStar.convertToBoard(app)
     cellWidth = app.width/app.boardRows
     cellHeight = app.height/app.boardCols
@@ -276,18 +285,20 @@ def makeAliensNextMove(app):
                    app.boardCols, cellWidth, cellHeight)
     for x in range(len(app.dots)):
         #check if alien
-        if isinstance(app.dots[x].hostObject, Alien):
+        if isinstance(app.dots[x].hostObject, Alien) and app.dots[x].hostObject.health > 0:
             alienCoords = aStar.findCell(app.dots[x].x, app.dots[x].y, app.boardRows, 
                         app.boardCols, cellWidth, cellHeight)
             if alienCoords != None:
                 path = aStar.aStar(board, destination, alienCoords)
-                print("Curr path: ", path)
                 #move in direction of first cell in path
-                if len(path) == 1:
+                if len(path) == 1: #then we're in the player's cell
+                    numAliensFound += 1
                     app.playerHit = True
                     break
                 if path != None:
                     moveToCell(app, alienCoords, path[1], x, cellWidth, cellHeight)
+    if numAliensFound == 0:
+        app.playerHit = False
 
 def updateWindow(app, sign, direction):
     if direction == "x":
@@ -317,6 +328,9 @@ def planet_onKeyPress(app, key):
                 app.player.inventory[row][col] = 0
             else:
                 app.player.inventory[row][col][0] -= 1
+    elif key == "n" and app.gameOver:
+        setActiveScreen("solarSystem")
+        newGame(app)
 
 def planet_onKeyHold(app, keys):
     if "a" in keys:
@@ -455,10 +469,8 @@ def materialCollected(app):
             pendingDistance = distance(x.x, x.y, app.width/2, app.height/2)
             if pendingDistance < app.player.currTool.hitRadius:
                 if pendingDistance < minDistance or minDistance == -1:
-                    #make sure it isn't an alien
-                    if isinstance(x.hostObject, Material):
-                        minDistance = pendingDistance
-                        minDot = x
+                    minDistance = pendingDistance
+                    minDot = x
         if minDot != 3:
             return (True, minDot.hostObject)
         
@@ -494,8 +506,8 @@ def craftCellSelector(app, mouseX, mouseY):
     cellRow = (mouseY - app.craftingListTopLeft[1]) // app.craftingCellHeight 
     if (app.craftingListTopLeft[0] < mouseX < app.craftingListTopLeft[0] + 
         app.craftingCellWidth) and app.craftPressed:
-        if 0 <= cellRow < len(toolList):
-            return (True, toolList[cellRow])
+        if 0 <= cellRow < len(app.toolList):
+            return (True, app.toolList[cellRow])
 
 def ableToCraft(app, tool):
     woodTotal = 0
@@ -504,11 +516,11 @@ def ableToCraft(app, tool):
         for y in x:
             if y == 0:
                 continue
-            if y[1] == wood:
+            if y[1] == app.wood:
                 woodTotal += y[0]
-            if y[1] == metal:
+            if y[1] == app.metal:
                 metalTotal += y[0]
-            if woodTotal >= tool.recipe[wood] and metalTotal >= tool.recipe[metal]:
+            if woodTotal >= tool.recipe[app.wood] and metalTotal >= tool.recipe[app.metal]:
                 return True
     return False
 
@@ -568,14 +580,17 @@ def returnToolToInventoryButtonPress(app, mouseX, mouseY):
                                  + heightUnequipToolButton):
         return True
 
-'''
 def planet_onStep(app):
-    app.counter += 1
-    if app.playerHit:
-        app.player.health -= 1
-    if app.counter % 5 == 0:
-        makeAliensNextMove(app)
-'''
+    if not app.paused:
+        if app.player.health == 0:
+            app.gameOver = True
+            app.paused = True
+        if app.playerHit and app.counter % 10 == 0:
+            app.player.health -= 1
+        if app.counter % 10 == 0:
+            app.counter = 0
+            makeAliensNextMove(app)
+        app.counter += 1
 
 def planet_onMousePress(app, mouseX, mouseY):
     cellWidth = app.inventoryGridWidth/app.inventoryCols
@@ -591,7 +606,7 @@ def planet_onMousePress(app, mouseX, mouseY):
     elif equipCloseButtonPress(app, mouseX, mouseY):
         app.equipPressed = False
     elif equipToolButtonPress(app, mouseX, mouseY):
-        if app.player.currTool != hand:
+        if app.player.currTool != app.hand:
             nextEmptyCell = findNextEmptyCell(app)
             if nextEmptyCell != None:
                 app.player.inventory[nextEmptyCell[0]][nextEmptyCell[1]] = [1, app.player.currTool]
@@ -602,7 +617,7 @@ def planet_onMousePress(app, mouseX, mouseY):
         nextEmptyCell = findNextEmptyCell(app)
         if nextEmptyCell != None:
             app.player.inventory[nextEmptyCell[0]][nextEmptyCell[1]] = [1, app.player.currTool]
-        app.player.currTool = hand
+        app.player.currTool = app.hand
     elif craftCloseButtonPress(app, mouseX, mouseY):
         app.craftPressed = False
     elif thirdButtonPress(app, mouseX, mouseY):
@@ -616,20 +631,25 @@ def planet_onMousePress(app, mouseX, mouseY):
         app.selectedRowCol = None
     elif materialCollected(app) != None:
             clickedDot = materialCollected(app)
-            pendingCell = findRightInventoryCell(app, clickedDot[1])
-            #increase selected inventory slot by appropriate total 
-            collectionFactor = app.player.currTool.efficiencyDict[clickedDot[1]]
-            if pendingCell != None:
-                x = 0
-                while x < collectionFactor:
-                    pendingCell = findRightInventoryCell(app, clickedDot[1])
-                    if pendingCell != None:
-                        pendingInventorySlot = app.player.inventory[pendingCell[0]][pendingCell[1]]
-                        if isinstance(pendingInventorySlot, int):
-                            app.player.inventory[pendingCell[0]][pendingCell[1]] = [1, clickedDot[1]]
-                        else:
-                            app.player.inventory[pendingCell[0]][pendingCell[1]][0] += 1         
-                    x += 1    
+            #if alien then deal damage to alien, and 
+            if isinstance(clickedDot[1], Alien):
+                clickedDot[1].health -= app.player.currTool.damage
+            #if material collect material
+            if isinstance(clickedDot[1], Material):
+                pendingCell = findRightInventoryCell(app, clickedDot[1])
+                #increase selected inventory slot by appropriate total 
+                collectionFactor = app.player.currTool.efficiencyDict[clickedDot[1]]
+                if pendingCell != None:
+                    x = 0
+                    while x < collectionFactor:
+                        pendingCell = findRightInventoryCell(app, clickedDot[1])
+                        if pendingCell != None:
+                            pendingInventorySlot = app.player.inventory[pendingCell[0]][pendingCell[1]]
+                            if isinstance(pendingInventorySlot, int):
+                                app.player.inventory[pendingCell[0]][pendingCell[1]] = [1, clickedDot[1]]
+                            else:
+                                app.player.inventory[pendingCell[0]][pendingCell[1]][0] += 1         
+                        x += 1    
     elif emptyCell(app, mouseX, mouseY):
         app.player.inventory[app.selectedRowCol[0]][app.selectedRowCol[1]] = 0
     elif craftCellSelector(app, mouseX, mouseY):
@@ -648,15 +668,19 @@ def planet_onMousePress(app, mouseX, mouseY):
 def planet_redrawAll(app):
     #draw player at center, or playerCoords if usePlayerCoords is True
     drawRect(0, 0, app.width, app.height, fill = app.planet.backgroundColor)
-    drawImage(playerImage, app.playerCoords[0] - app.playerSize/2, 
-              app.playerCoords[1] - app.playerSize/2, width = app.playerSize, height = app.playerSize)
-    #drawCircle(app.playerCoords[0], app.playerCoords[1], 10, fill = "black")
+    drawImage(app.playerImage, app.playerCoords[0] - app.playerSize/2, 
+              app.playerCoords[1] - app.playerSize/2, width = app.playerSize, 
+              height = app.playerSize)
     #a given element in app.dots is an instance of the Dot class with attributes 
     #x, y, size 
     for x in app.dots:
         #draw dots
         if 0 < x.x < app.width and 0 < x.y < app.height:
-            x.draw()
+            if isinstance(x.hostObject, Alien):
+                if x.hostObject.health > 0:
+                    x.draw()
+            else:
+                x.draw()
     if app.inventoryPressed:
         drawInventory(app)
     if app.equipPressed:
@@ -665,16 +689,18 @@ def planet_redrawAll(app):
         drawCraftWindow(app)
     #draw inventory icon
     drawInventoryIcon(app)
+    #draw stamina and health if they are hit with aliens
+    drawLabel(f"Stamina: {app.player.stamina}", 
+                  app.healthLabel[0], app.healthLabel[1] + 50, size = 30)
     if app.playerHit:
-        drawLabel(f"Health dropping! Run away! Health: {app.player.health}", app.healthLabel[0], app.healthLabel[1])
-    #testing grid thing
-    stepSizeX = app.width/11
-    stepSizeY = app.height/11
-    '''
-    for x in range(11):
-        for y in range(11):
-            drawRect(x * stepSizeX, y * stepSizeY, stepSizeX, stepSizeY, fill = None, border = 'black', borderWidth = app.cellBorderWidth)
-    '''
+        drawLabel(f"Health dropping! Run away! Health: {app.player.health}", 
+                  app.healthLabel[0], app.healthLabel[1], size = 50)
+    #check if game over
+    if app.gameOver:
+        drawLabel("Game Over! Health reached 0, press n to start new game", 
+                  app.width/2, app.height/2, size = 60)
+        
+
 
 #all functions for solarSystem scene
 def solarSystem_redrawAll(app):
@@ -711,7 +737,6 @@ def solarSystem_onMousePress(app, mouseX, mouseY):
             app.selectedPlanet = maxX
             app.planet = app.planets[app.selectedPlanet - 1]
             app.dots = app.planet.generateDots()
-            #print(aStar.convertToBoard(app))
 
 
 #conceptual understanding of multiple screens implementation learned from demo 

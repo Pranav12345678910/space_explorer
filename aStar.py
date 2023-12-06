@@ -30,15 +30,9 @@ def findCell(x, y, rows, cols, cellWidth, cellHeight):
             return (int(y // cellHeight), int(x // cellWidth))
 
 def convertToBoard(app):
-    #convert the current state of the app to a 2D array
-    #for now, 11 x 11 because was goign to do 10 x 10 but odd is better to 
-    #clearly define destination (player)
     board = [([0] * app.boardCols) for row in range(app.boardRows)]
     cellWidth = app.width/app.boardRows
     cellHeight = app.height/app.boardCols
-    #make player grid empty always, so that the alien knows it can go into it, 
-    #to find the player
-    board[5][5] = 0
     #now, we have a board where empty cells are marked with a 0. So we can perform A* 
     #on this board with the player cell as the goal, avoiding cells with a value of 1
     return board
@@ -100,12 +94,3 @@ def aStar(board, destination, alienCoords):
                 if borderingNode not in notExplored:
                     #add this neighbor to be explored later
                     notExplored.append(borderingNode)
-
-
-board = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0], [0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1], [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], [0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0]]
-
-alienCoords = (4, 0)
-goal = (5, 5)
-
-path = aStar(board, goal, alienCoords)
-print(path)

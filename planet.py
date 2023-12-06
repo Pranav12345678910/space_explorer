@@ -1,5 +1,6 @@
 from random import *
 from dot import *
+import copy
 
 class Planet:
     #Planets are specifications to randomly generate dots
@@ -34,6 +35,6 @@ class Planet:
                           (self.generateWidth/2 + self.appWidth/2))
             heightRange = ((self.appHeight/2 - self.generateHeight/2), 
                            (self.generateHeight/2 + self.appHeight/2))
-            result.append(self.possibleAliens[alienIndex].
+            result.append(copy.copy(self.possibleAliens[alienIndex]).
                           generateDot(widthRange, heightRange))
         return result
