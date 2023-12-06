@@ -12,7 +12,6 @@ class Material:
         self.stackNumber = stackNumber
         self.image = image
     
-    def generateDot(self, widthRange, heightRange):
+    def generateDot(self, widthRange, heightRange, size):
         return Dot(randrange(*widthRange), 
-                   randrange(*heightRange), 
-                   randint(self.minSize, self.maxSize), self.image, self)
+                   randrange(*heightRange), size, self.image, self)

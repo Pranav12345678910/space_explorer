@@ -143,6 +143,7 @@ def loadMisc(app):
     app.stepCounter = 0
     app.maxDotsPerVoronoiZone = 18
     app.numSeeds = 15
+    app.playerMoving = False
 
 def onAppStart(app):
     newGame(app)
@@ -349,12 +350,15 @@ def planet_onKeyHold(app, keys):
                     updateWindow(app, +1, "x")
                     app.usePlayerCoordsX = True
                     app.player.stamina -= 1
+                    app.stepCounter = 0
             elif app.usePlayerCoordsX:
                 app.playerCoords[0] -= 5 * app.player.currArmor.speedFactor
                 app.player.stamina -= 1
+                app.stepCounter = 0
             else:
                 updateDots(app, +1, "x")
                 app.player.stamina -= 1
+                app.stepCounter = 0
         if "s" in keys: 
             if app.planetDotGenerationWindow[1] + app.planetDotGenerationWindow[3] <= app.height:
                 if app.playerCoords[1] < app.height:
@@ -362,12 +366,15 @@ def planet_onKeyHold(app, keys):
                     updateWindow(app, -1, "y")
                     app.usePlayerCoordsY = True
                     app.player.stamina -= 1
+                    app.stepCounter = 0
             elif app.usePlayerCoordsY:
                 app.playerCoords[1] += 5 * app.player.currArmor.speedFactor
                 app.player.stamina -= 1
+                app.stepCounter = 0
             else:
                 updateDots(app, -1, "y")
                 app.player.stamina -= 1
+                app.stepCounter = 0
         if "w" in keys:
             if app.planetDotGenerationWindow[1] >= 0:
                 if app.playerCoords[1] > 0:
@@ -375,12 +382,15 @@ def planet_onKeyHold(app, keys):
                     updateWindow(app, +1, "y")
                     app.usePlayerCoordsY = True
                     app.player.stamina -= 1
+                    app.stepCounter = 0
             elif app.usePlayerCoordsY:
                 app.playerCoords[1] -= 5 * app.player.currArmor.speedFactor
                 app.player.stamina -= 1
+                app.stepCounter = 0
             else:
                 updateDots(app, +1, "y")
                 app.player.stamina -= 1
+                app.stepCounter = 0
         if "d" in keys:
             if app.planetDotGenerationWindow[0] + app.planetDotGenerationWindow[2] <= app.width:
                 if app.playerCoords[0] < app.width:
@@ -388,12 +398,15 @@ def planet_onKeyHold(app, keys):
                     updateWindow(app, -1, "x")
                     app.usePlayerCoordsX = True
                     app.player.stamina -= 1
+                    app.stepCounter = 0
             elif app.usePlayerCoordsX:
                 app.playerCoords[0] += 5 * app.player.currArmor.speedFactor 
                 app.player.stamina -= 1
+                app.stepCounter = 0
             else:
                 updateDots(app, -1, "x")
                 app.player.stamina -= 1
+                app.stepCounter = 0
     if app.playerCoords[0] == app.width/2: 
         app.usePlayerCoordsX = False
     if app.playerCoords[1] == app.height/2:
@@ -601,7 +614,7 @@ def planet_onStep(app):
         if app.counter % 10 == 0:
             app.counter = 0
             makeAliensNextMove(app)
-        if app.stepCounter >= 100 and app.player.stamina < 100:
+        if app.stepCounter >= 50 and app.player.stamina < 100:
             app.player.stamina += 1
         app.counter += 1
         app.stepCounter += 1
